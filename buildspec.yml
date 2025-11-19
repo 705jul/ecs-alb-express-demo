@@ -13,7 +13,7 @@ phases:
             - aws ecr --region ap-northeast-2 get-login-password | docker login --username AWS --password-stdin https://${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/sbcntr-backend
             - REPOSITORY_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com/${ECR_REPOSITORY_NAME}
             # 태그 이름으로 Git 커밋 해시를 이용
-            - IMAGE_TAG=$(echo ${CODEBUILD_RESOLVED_SOURCE_VERSION} | cut -c 1-7)
+            - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}
             # 사전 준비: trivy를 설치
             # 주석 처리된 curl 명령을 이용해 최신 버전을 취득하도록 구성할 수 있음
             #- TRIVY_VERSION=$(curl -sS https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
@@ -37,7 +37,7 @@ phases:
             - trivy --no-progress --exit-code 1 --severity CRITICAL ${REPOSITORY_URI}:${IMAGE_TAG}
             - exit `echo $?`
             # dockle를 이용한 이미지 확인(취약점 수준이 FATAL인 경우는 빌드를 강제 종료)
-            - dockle --format json -o dockle_results.json --exit-code 1 --exit-level "FATAL" ${REPOSITORY_URI}:${IMAGE_TAG}
+            - dockle --format json -o dockle_results.json --exit-code 1 --exit-level FATAL ${REPOSITORY_URI}:${IMAGE_TAG}
             - exit `echo $?`
             # Docker이미지를 ECR에 푸시
             - docker image push ${REPOSITORY_URI}:${IMAGE_TAG}
