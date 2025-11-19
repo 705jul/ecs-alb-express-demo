@@ -14,8 +14,7 @@ phases:
       - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
 
       - echo "Login to ECR..."
-      - aws ecr get-login-password --region ${AWS_REGION_NAME} \
-        | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com
+      - aws ecr get-login-password --region ${AWS_REGION_NAME} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com
 
       # ECR URI / 태그 / 로컬 이미지 이름 계산
       - REPOSITORY_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com/${ECR_REPOSITORY_NAME}
