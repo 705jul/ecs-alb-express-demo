@@ -47,15 +47,19 @@ phases:
       - echo "Scanning image with Trivy (fail on CRITICAL)..."
       - trivy --no-progress --exit-code 1 --severity CRITICAL ${LOCAL_IMAGE}
 
-      - echo "Scanning image with Dockle..."
-      - dockle --format json -o dockle_results.json --exit-code 1 --exit-level "FATAL" ${LOCAL_IMAGE}
+      - echo "Saving local image to tar for Dockle..."
+      - docker save ${LOCAL_IMAGE} -o sbcntr-backend.tar
+
+      - echo "Scanning image with Dockle (from tar)..."
+      - dockle --input sbcntr-backend.tar \
+        --format json -o dockle_results.json \
+        --exit-code 1 --exit-level "FATAL"
 
       - echo "Tagging image for ECR and pushing..."
       - docker tag ${LOCAL_IMAGE} ${ECR_IMAGE}
       - docker image push ${ECR_IMAGE}
 
       - echo "Writing imagedefinitions.json for ECS deployment..."
-      # ECS용 image 정의 파일은 key 이름이 imageUri 여야 함 (대소문자 주의)
       - printf '[{"name":"%s","imageUri":"%s"}]' "${ECR_REPOSITORY_NAME}" "${ECR_IMAGE}" > imagedefinitions.json
 
 artifacts:
