@@ -4,8 +4,9 @@ env:
   variables:
     AWS_REGION_NAME: ap-northeast-2
     ECR_REPOSITORY_NAME: sbcntr-backend
-    IMAGE_NAME: sbcntr-backend        # 로컬에서 사용할 이미지 이름
+    IMAGE_NAME: sbcntr-backend
     DOCKER_BUILDKIT: "1"
+    DOCKLE_HOST: "unix:///var/run/docker.sock"   # Dockle이 로컬 Docker 데몬을 보도록 지정
 
 phases:
   pre_build:
@@ -16,7 +17,6 @@ phases:
       - echo "Login to ECR..."
       - aws ecr get-login-password --region ${AWS_REGION_NAME} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com
 
-      # ECR URI / 태그 / 로컬 이미지 이름 계산
       - REPOSITORY_URI=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION_NAME}.amazonaws.com/${ECR_REPOSITORY_NAME}
       - IMAGE_TAG=$(echo ${CODEBUILD_RESOLVED_SOURCE_VERSION} | head -c 7)
       - LOCAL_IMAGE=${IMAGE_NAME}:${IMAGE_TAG}
@@ -37,7 +37,6 @@ phases:
   build:
     commands:
       - echo "Building Docker image ${LOCAL_IMAGE}..."
-      # ⚠️ 여기서는 ECR URI가 아니라 로컬 이름으로 태깅
       - docker image build -t ${LOCAL_IMAGE} .
 
   post_build:
@@ -47,18 +46,16 @@ phases:
 
       - echo "Scanning image with Trivy (fail on CRITICAL)..."
       - trivy --no-progress --exit-code 1 --severity CRITICAL ${LOCAL_IMAGE}
-      # 위에서 CRITICAL 있으면 여기서 바로 exit 1로 빌드 실패
 
       - echo "Scanning image with Dockle..."
       - dockle --format json -o dockle_results.json --exit-code 1 --exit-level "FATAL" ${LOCAL_IMAGE}
-      # FATAL 있으면 여기서 exit 1로 빌드 실패
 
       - echo "Tagging image for ECR and pushing..."
       - docker tag ${LOCAL_IMAGE} ${ECR_IMAGE}
       - docker image push ${ECR_IMAGE}
 
       - echo "Writing imagedefinitions.json for ECS deployment..."
-      # ⚠️ key 이름은 imageUri 여야 함
+      # ECS용 image 정의 파일은 key 이름이 imageUri 여야 함 (대소문자 주의)
       - printf '[{"name":"%s","imageUri":"%s"}]' "${ECR_REPOSITORY_NAME}" "${ECR_IMAGE}" > imagedefinitions.json
 
 artifacts:
